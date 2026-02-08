@@ -1,11 +1,19 @@
 
 import React from 'react';
 
+type BlockedUser = {
+  id: string;
+  name: string;
+};
+
 interface SettingsProps {
-  blockedUsers?: string[];
+  email?: string;
+  blockedUsers?: BlockedUser[];
+  onUnblock?: (userId: string) => void;
+  onSignOut?: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ blockedUsers = [] }) => {
+const Settings: React.FC<SettingsProps> = ({ email, blockedUsers = [], onUnblock, onSignOut }) => {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar p-12">
       <header className="mb-10">
@@ -20,7 +28,7 @@ const Settings: React.FC<SettingsProps> = ({ blockedUsers = [] }) => {
           </h3>
           <div className="bg-surface-dark border border-border-dark rounded-2xl overflow-hidden divide-y divide-border-dark">
             {[
-              { label: 'Email Address', value: 'ahmed.zaeem@example.mv', icon: 'mail' },
+              { label: 'Email Address', value: email || 'Unknown', icon: 'mail' },
               { label: 'Phone Number', value: '+960 777 1234', icon: 'phone' },
               { label: 'Change Password', value: 'Last updated 3 months ago', icon: 'lock' }
             ].map((item, i) => (
@@ -49,13 +57,13 @@ const Settings: React.FC<SettingsProps> = ({ blockedUsers = [] }) => {
               <p className="text-sm text-slate-500">You haven't blocked any users yet.</p>
             ) : (
               <div className="space-y-4">
-                {blockedUsers.map((userId, i) => (
+                {blockedUsers.map((user, i) => (
                   <div key={i} className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="size-10 bg-slate-700 rounded-full flex items-center justify-center text-xs font-bold text-slate-400">ID</div>
-                      <span className="text-sm text-white font-medium">Blocked User {userId}</span>
+                      <div className="size-10 bg-slate-700 rounded-full flex items-center justify-center text-xs font-bold text-slate-400">U</div>
+                      <span className="text-sm text-white font-medium">{user.name}</span>
                     </div>
-                    <button className="text-primary text-xs font-bold hover:underline">Unblock</button>
+                    <button onClick={() => onUnblock?.(user.id)} className="text-primary text-xs font-bold hover:underline">Unblock</button>
                   </div>
                 ))}
               </div>
@@ -87,7 +95,7 @@ const Settings: React.FC<SettingsProps> = ({ blockedUsers = [] }) => {
         </section>
 
         <footer className="pt-10 border-t border-border-dark flex flex-col items-center gap-6">
-          <button className="w-full md:w-64 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+          <button onClick={onSignOut} className="w-full md:w-64 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
             <span className="material-symbols-outlined">logout</span> Log Out
           </button>
           <p className="text-xs text-slate-500">Hingaa App Version 2.4.0 (Build 892)</p>

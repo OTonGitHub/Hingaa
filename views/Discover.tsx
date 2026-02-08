@@ -1,71 +1,23 @@
 
 import React, { useState } from 'react';
-import { Activity, ActivityStatus } from '../types';
+import { Activity } from '../types';
 import ActivityCard from '../components/ActivityCard';
-import { GoogleGenAI, Type } from "@google/genai";
+import { searchActivitiesWithAi } from '../lib/ai';
 
 interface DiscoverProps {
   onActivityClick: (id: string) => void;
   onCreateClick: () => void;
   onToggleNotifications: () => void;
   onJoinRequest: (id: string, title: string) => void;
+  activities: Activity[];
 }
 
-const Discover: React.FC<DiscoverProps> = ({ onActivityClick, onCreateClick, onToggleNotifications, onJoinRequest }) => {
+const Discover: React.FC<DiscoverProps> = ({ onActivityClick, onCreateClick, onToggleNotifications, onJoinRequest, activities }) => {
   const [filterDate, setFilterDate] = useState<'all' | 'today' | 'weekend'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [aiMatches, setAiMatches] = useState<string[] | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
-
-  // Hardcoded for demo - usually these would come from a backend
-  const activities: Activity[] = [
-    {
-      id: '1',
-      title: 'Night Fishing Experience',
-      description: 'Experience the traditional Maldivian way of night fishing under the stars. Join us for a calm and fruitful evening on the sea.',
-      date: 'Today',
-      time: '8:00 PM',
-      hostName: 'Ahmed Hassan',
-      hostAvatar: 'https://picsum.photos/seed/host1/100/100',
-      participants: 16,
-      participantLimit: 22,
-      location: 'Hulhumalé',
-      status: ActivityStatus.OPEN,
-      image: 'https://picsum.photos/seed/fishing/800/600',
-      tags: ['Fishing', 'Outdoor']
-    },
-    {
-      id: '2',
-      title: 'Startup Pitch & Networking',
-      description: 'A private session for early-stage founders to practice their pitches and get constructive feedback from local mentors.',
-      date: 'Dec 11',
-      time: '4:00 PM',
-      hostName: 'Sara M.',
-      hostAvatar: 'https://picsum.photos/seed/host2/100/100',
-      participants: 8,
-      participantLimit: 12,
-      location: "Male' City",
-      status: ActivityStatus.REQUEST,
-      image: 'https://picsum.photos/seed/startup/800/600',
-      tags: ['Business', 'Networking']
-    },
-    {
-      id: '6',
-      title: 'Weekend Surf Trip',
-      description: 'Heading out to Cokes and Chickens. Intermediate surfers only please.',
-      date: 'Saturday',
-      time: '6:00 AM',
-      hostName: 'Ali Surf',
-      hostAvatar: 'https://picsum.photos/seed/surf/100/100',
-      participants: 4,
-      participantLimit: 6,
-      location: "Thulusdhoo",
-      status: ActivityStatus.OPEN,
-      image: 'https://picsum.photos/seed/surfing/800/600',
-      tags: ['Sports', 'Water']
-    }
-  ];
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -92,40 +44,16 @@ const Discover: React.FC<DiscoverProps> = ({ onActivityClick, onCreateClick, onT
     setAiSuggestion(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const activityData = activities.map(a => ({ id: a.id, title: a.title, desc: a.description }));
-      
-      const prompt = `User query: "${searchQuery}"
-      Available activities: ${JSON.stringify(activityData)}
-      
-      Task:
-      1. Identify which activity IDs best match the user's intent. Return them in an array 'matches'.
-      2. If no activities are a good match, provide a brief suggestion for a NEW activity that would satisfy the user in 'suggestion'.
-      3. Return a JSON object.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              matches: { type: Type.ARRAY, items: { type: Type.STRING } },
-              suggestion: { type: Type.STRING, nullable: true }
-            },
-            required: ["matches"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text);
+      const result = await searchActivitiesWithAi(searchQuery, activityData);
       setAiMatches(result.matches);
       if (result.matches.length === 0) {
         setAiSuggestion(result.suggestion || "Create a new custom activity based on your prompt.");
       }
     } catch (error) {
       console.error("AI Search failed", error);
+      setAiMatches([]);
+      setAiSuggestion('AI search is unavailable right now. Check backend AI function secrets and try again.');
     } finally {
       setIsSearching(false);
     }

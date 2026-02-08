@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { supabase } from '../lib/supabase';
+import { magicFillActivity, moderateActivityContent } from '../lib/ai';
 
 interface CreateActivityProps {
   onPublish: () => void;
@@ -15,7 +16,9 @@ const CreateActivity: React.FC<CreateActivityProps> = ({ onPublish }) => {
     participantLimit: 5,
     date: '',
     time: '',
-    location: ''
+    location: '',
+    latitude: '',
+    longitude: ''
   });
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -27,40 +30,19 @@ const CreateActivity: React.FC<CreateActivityProps> = ({ onPublish }) => {
     setErrorMessage(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Parse the following activity plan and return a JSON object with title, description, category, participantLimit, date (YYYY-MM-DD), and time (HH:MM): "${magicInput}"`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              description: { type: Type.STRING },
-              category: { type: Type.STRING },
-              participantLimit: { type: Type.INTEGER },
-              date: { type: Type.STRING },
-              time: { type: Type.STRING },
-            },
-            required: ["title", "description", "category", "participantLimit", "date", "time"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text);
+      const result = await magicFillActivity(magicInput);
       setFormData(prev => ({ ...prev, ...result }));
     } catch (error) {
       console.error("AI Magic Fill failed", error);
-      setErrorMessage("Could not parse magic input. Please try again.");
+      setErrorMessage((error as Error).message || "Could not parse magic input. Please try again.");
     } finally {
       setIsMagicLoading(false);
     }
   };
 
   const handlePublish = async () => {
-    if (!formData.title || !formData.description) {
-      setErrorMessage("Please fill in the title and description.");
+    if (!formData.title || !formData.description || !formData.location) {
+      setErrorMessage("Please fill in the title, description, and location.");
       return;
     }
 
@@ -68,45 +50,38 @@ const CreateActivity: React.FC<CreateActivityProps> = ({ onPublish }) => {
     setErrorMessage(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const safetyPrompt = `
-        Evaluate the following activity for platform safety rules. 
-        Rules: Strictly forbid nudity, violence, hate speech, political protests, bullying, foul language, criminal discussion, gang activity, drugs, and alcohol.
-        
-        Activity Title: "${formData.title}"
-        Activity Description: "${formData.description}"
-        
-        Return JSON object: {"safe": boolean, "reason": string | null}
-        "reason" should only be present if "safe" is false.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: safetyPrompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              safe: { type: Type.BOOLEAN },
-              reason: { type: Type.STRING, nullable: true }
-            },
-            required: ["safe"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text);
+      const result = await moderateActivityContent(formData.title, formData.description);
       
       if (result.safe) {
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) {
+          throw new Error('Please sign in before publishing an activity.');
+        }
+
+        const { error: insertError } = await supabase.from('activities').insert({
+          host_id: authData.user.id,
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          participant_limit: formData.participantLimit,
+          activity_date: formData.date || null,
+          activity_time: formData.time || null,
+          location_name: formData.location,
+          latitude: formData.latitude ? Number(formData.latitude) : null,
+          longitude: formData.longitude ? Number(formData.longitude) : null,
+          image_url: 'https://picsum.photos/seed/' + Date.now() + '/800/600',
+          status: 'open'
+        });
+
+        if (insertError) throw insertError;
+
         onPublish();
       } else {
         setErrorMessage(`Content restricted: ${result.reason || "The content violates our safety guidelines (e.g. inappropriate topics, drugs, or violence)."}`);
       }
     } catch (error) {
       console.error("Moderation failed", error);
-      setErrorMessage("A technical error occurred during moderation. Please try again.");
+      setErrorMessage((error as Error).message || "A technical error occurred during moderation. Please try again.");
     } finally {
       setIsPublishing(false);
     }
@@ -204,6 +179,27 @@ const CreateActivity: React.FC<CreateActivityProps> = ({ onPublish }) => {
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black mb-2 px-1 text-slate-500 uppercase tracking-widest">Coordinates (Optional)</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  className="w-full bg-surface-dark border-border-dark rounded-xl md:rounded-2xl p-4 focus:border-primary focus:ring-0 transition-all text-white font-bold text-sm"
+                  placeholder="Latitude"
+                  type="number"
+                  step="any"
+                  value={formData.latitude}
+                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                />
+                <input
+                  className="w-full bg-surface-dark border-border-dark rounded-xl md:rounded-2xl p-4 focus:border-primary focus:ring-0 transition-all text-white font-bold text-sm"
+                  placeholder="Longitude"
+                  type="number"
+                  step="any"
+                  value={formData.longitude}
+                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
                 />
               </div>
             </div>

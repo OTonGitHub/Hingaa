@@ -1,21 +1,23 @@
 
 import React, { useState } from 'react';
+import { Activity } from '../types';
 
 interface ActivityDetailsProps {
   id: string | null;
+  activity: Activity | null;
   onBack: () => void;
   onOpenMaps: () => void;
   members: any[];
   onJoinRequest: (id: string, title: string) => void;
 }
 
-const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMaps, members, onJoinRequest }) => {
+const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, activity, onBack, onOpenMaps, members, onJoinRequest }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const joinCode = `MV-${(id || 'X').padStart(4, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
   const shareLink = `https://hingaa.mv/join/${id || 'active'}`;
 
-  const activityTitle = "Night Fishing Trip"; // Usually dynamic
+  const activityTitle = activity?.title || 'Activity';
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -40,9 +42,9 @@ const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMap
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 md:mb-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
-              <span className="flex items-center gap-1.5 text-primary text-xs md:text-sm font-bold uppercase tracking-wider">
-                <span className="material-symbols-outlined text-sm">calendar_today</span> Friday, Oct 27 • 8:00 PM
-              </span>
+                <span className="flex items-center gap-1.5 text-primary text-xs md:text-sm font-bold uppercase tracking-wider">
+                  <span className="material-symbols-outlined text-sm">calendar_today</span> {activity?.date || 'TBD'} • {activity?.time || 'TBD'}
+                </span>
             </div>
             <h1 className="text-3xl md:text-6xl font-extrabold text-white tracking-tight mb-4 leading-tight">{activityTitle}</h1>
             <div className="flex items-center gap-4">
@@ -56,7 +58,7 @@ const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMap
                   </div>
                 )}
               </div>
-              <p className="text-xs md:text-sm text-slate-400 font-medium">{22 - members.length} spots left • Organized by <span className="text-white font-bold">Ahmed F.</span></p>
+              <p className="text-xs md:text-sm text-slate-400 font-medium">{Math.max((activity?.participantLimit || members.length) - members.length, 0)} spots left • Organized by <span className="text-white font-bold">{activity?.hostName || 'Host'}</span></p>
             </div>
           </div>
           <div className="flex items-center gap-3 fixed bottom-24 md:relative md:bottom-0 inset-x-4 md:inset-x-0 z-30">
@@ -79,8 +81,8 @@ const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMap
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 md:mb-12 items-stretch">
-          <div className="lg:col-span-8 rounded-2xl overflow-hidden border border-border-dark h-64 md:h-[400px]">
-            <img className="w-full h-full object-cover" src="https://picsum.photos/seed/fishing/1200/800" alt="hero" />
+            <div className="lg:col-span-8 rounded-2xl overflow-hidden border border-border-dark h-64 md:h-[400px]">
+            <img className="w-full h-full object-cover" src={activity?.image || 'https://picsum.photos/seed/fishing/1200/800'} alt="hero" />
           </div>
           <div className="lg:col-span-4 bg-card-dark rounded-2xl border border-border-dark overflow-hidden flex flex-col h-64 md:h-[400px]">
              <div className="flex-1 bg-slate-900/50 relative flex items-center justify-center overflow-hidden">
@@ -88,7 +90,7 @@ const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMap
                 <div className="absolute inset-0 bg-primary/10"></div>
                 <div className="relative z-10 flex flex-col items-center justify-center gap-2">
                   <span className="material-symbols-outlined text-primary text-3xl fill-1">location_on</span>
-                  <p className="text-[10px] font-black text-white bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 uppercase tracking-widest text-center mx-4">Malé Harbor, Pier 4</p>
+                  <p className="text-[10px] font-black text-white bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 uppercase tracking-widest text-center mx-4">{activity?.location || 'Unknown location'}</p>
                 </div>
              </div>
              <div className="p-5 md:p-6 bg-surface-dark border-t border-border-dark">
@@ -105,7 +107,7 @@ const ActivityDetails: React.FC<ActivityDetailsProps> = ({ id, onBack, onOpenMap
               <span className="material-symbols-outlined text-primary text-2xl md:text-3xl">description</span>
               <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">Activity Details</h3>
             </div>
-            <p>Experience the magic of the Maldivian night sea. We'll head out on a traditional Dhoni to the reef outskirts. All fishing gear, bait, and light refreshments will be provided.</p>
+            <p>{activity?.description || 'No details yet for this activity.'}</p>
           </div>
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6 md:mb-8">
