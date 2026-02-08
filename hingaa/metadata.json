@@ -1,0 +1,7 @@
+{
+  "name": "Hingaa",
+  "description": " A Maldives-based, mobile-first web app to discover and join hangout activities and meet new people through activities—not random DMs.\n",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
