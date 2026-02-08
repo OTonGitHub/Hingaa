@@ -14,7 +14,7 @@ import Archive from './views/Archive';
 import Onboarding from './views/Onboarding';
 import Auth from './views/Auth';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
+import { supabase, supabaseConfigError } from './lib/supabase';
 import { mapDbActivityToUi } from './lib/activityMappers';
 import { Activity, DbActivity } from './types';
 
@@ -66,6 +66,22 @@ const App: React.FC = () => {
   const [showBlockConfirm, setShowBlockConfirm] = useState<{ userId: string; userName: string } | null>(null);
 
   const currentUserId = session?.user?.id ?? null;
+
+  if (supabaseConfigError) {
+    return (
+      <div className="min-h-screen bg-background-dark text-white flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-surface-dark border border-border-dark rounded-3xl p-8">
+          <h1 className="text-2xl font-black mb-3">Configuration Required</h1>
+          <p className="text-slate-300 text-sm mb-4">{supabaseConfigError}</p>
+          <div className="text-xs text-slate-400 space-y-1">
+            <p>Add these in Vercel project settings and redeploy:</p>
+            <p>`VITE_SUPABASE_URL`</p>
+            <p>`VITE_SUPABASE_PUBLISHABLE_KEY`</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
